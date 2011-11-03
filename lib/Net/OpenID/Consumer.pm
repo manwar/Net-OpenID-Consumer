@@ -1157,60 +1157,81 @@ Net::OpenID::Consumer - Library for consumers of OpenID identities
 
   my $csr = Net::OpenID::Consumer->new(
     ua    => LWPx::ParanoidAgent->new,
-    cache => Some::Cache->new,
+    cache => Cache::File->new( cache_root => '/tmp/mycache' ),
     args  => $cgi,
     consumer_secret => ...,
     required_root => "http://site.example.com/",
+    assoc_options => [
+      max_encrypt => 1,
+      session_no_encrypt_https => 1,
+    ],
   );
 
-  # a user entered, say, "bradfitz.com" as their identity.  The first
-  # step is to fetch that page, parse it, and get a
-  # Net::OpenID::ClaimedIdentity object:
+  # Say a user enters "bradfitz.com" as his/her identity.  The first
+  # step is to perform discovery, i.e., fetch that page, parse it,
+  # find out the actual identity provider and other useful information,
+  # which gets encapsulated in a Net::OpenID::ClaimedIdentity object:
 
   my $claimed_identity = $csr->claimed_identity("bradfitz.com");
+  unless ($claimed_identity) {
+    die "not actually an openid?  " . $csr->err;
+  }
 
-  # now your app has to send them at their identity provider's endpoint
-  # to get redirected to either a positive assertion that they own
-  # that identity, or where they need to go to login/setup trust/etc.
-
+  # We can then launch the actual authentication of this identity.
+  # The first step is to redirect the user to the appropriate URL at
+  # the identity provider.  This URL is constructed as follows:
+  #
   my $check_url = $claimed_identity->check_url(
     return_to  => "http://example.com/openid-check.app?yourarg=val",
     trust_root => "http://example.com/",
+
+    # to do a "checkid_setup mode" request, in which the user can
+    # interact with the provider, e.g., so that the user can sign in
+    # there if s/he has not done so already, you will need this,
+    delayed_return => 1
+
+    # otherwise, this will be a "check_immediate mode" request, the
+    # provider will have to immediately return some kind of answer
+    # without interaction
   );
 
-  # so you send the user off there, and then they come back to
-  # openid-check.app, then you see what the identity provider said.
+  # Once you redirect the user to $check_url, the provider should
+  # eventually redirect back, at which point you need some kind of
+  # handler at openid-check.app to deal with that response.
 
-  # Either use callback-based API (recommended)...
+  # You can either use the callback-based API (recommended)...
+  #
   $csr->handle_server_response(
       not_openid => sub {
           die "Not an OpenID message";
       },
       setup_needed => sub {
-          # (openID 1) redirect user to $csr->user_setup_url
-          # (openID 2) retry request in checkid_setup mode
+          # (OpenID 2) retry request in checkid_setup mode
+          # (OpenID 1) redirect user to $csr->user_setup_url
       },
       cancelled => sub {
-          # Do something appropriate when the user hits "cancel" at the OP
+          # User hit cancel; restore application state prior to check_url
       },
       verified => sub {
-          my $vident = shift;
-          # Do something with the VerifiedIdentity object $vident
+          my ($vident) = @_;
+          my $verified_url = $vident->url;
+          print "You are $verified_url !";
       },
       error => sub {
-          my $err = shift;
-          die($err);
+          my ($errcode,$errtext) = @_;
+          die("Error validating identity: $errcode: $errcode");
       },
   );
 
   # ... or handle the various cases yourself
-  unless ($the_csr->is_server_response) {
+  #
+  unless ($csr->is_server_response) {
       die "Not an OpenID message";
   } elsif ($csr->setup_needed) {
-       # (openID 1) redirect/link/popup user to $csr->user_setup_url
-       # (openID 2) retry request in checkid_setup mode
+       # (OpenID 2) retry request in checkid_setup mode
+       # (OpenID 1) redirect/link/popup user to $csr->user_setup_url
   } elsif ($csr->user_cancel) {
-       # restore web app state to prior to check_url
+       # User hit cancel; restore application state prior to check_url
   } elsif (my $vident = $csr->verified_identity) {
        my $verified_url = $vident->url;
        print "You are $verified_url !";
@@ -1231,11 +1252,11 @@ identity.  More information is available at:
 
 =over 4
 
-=item C<new>
+=item B<new>
 
-my $csr = Net::OpenID::Consumer->new([ %opts ]);
+ my $csr = Net::OpenID::Consumer->new( %options );
 
-You can set the
+The following option names are recognized:
 C<ua>,
 C<cache>,
 C<args>,
@@ -1244,7 +1265,9 @@ C<minimum_version>,
 C<required_root>,
 C<assoc_options>, and
 C<nonce_options>
-in the constructor.  See the corresponding method descriptions below.
+in the constructor.
+In each case the option value is treated exactly as the argument
+to the corresponding method described below under L<Configuration|/Configuration>.
 
 =back
 
@@ -1307,7 +1330,8 @@ documentation so you're aware of why you should care.
 =item $csr->B<cache>
 
 Getter/setter for the cache instance which is used for storing fetched
-HTML or XRDS pages and keys for associations with identity providers.
+HTML or XRDS pages, keys for associations with identity providers, and
+received response_nonce values from positive provider assertions.
 
 The $cache object can be anything that has a -E<gt>get($key) and
 -E<gt>set($key,$value[,$expire]) methods.  See L<URI::Fetch> for more
@@ -1543,19 +1567,24 @@ specified and C<window/2> is smaller.
 
 Misconfiguration of the provider clock means its timestamps are not
 reliable, which then means there is no way to know whether or not the
-nonce could have been sent before the start of the cache window,
-which nullifies any obligation to detect multiply sent nonces.
+nonce could have been sent before the start of the cache window, which
+nullifies any obligation to detect all multiply sent nonces.
 Conversely, if proper configuration can be assumed, then the timestamp
 value minus C<skew> will be the earliest possible time that we could
 have received a previous instance of this response_nonce, and if the
 cache is reliable about holding entries from that time forward, then
-(and only then) can one be certain that this is indeed the first instance.
+(and only then) can one be certain that an uncached nonce instance is
+indeed the first.
 
 =item  C<start>
 
 (integer)
 Reject nonces where I<timestamp> minus C<skew> is earlier than C<start>
-(absolute seconds since the epoch; defaults is zero, i.e., midnight 1/1/1970 UTC)
+(absolute seconds; default is zero a.k.a. midnight 1/1/1970 UTC)
+
+If you know the start time of your HTTP server (or your cache server,
+if that is separate E<mdash> or the maximum of the start times if you
+have multiple cache servers), you should use this option to declare that.
 
 =item  C<window>
 
@@ -1568,12 +1597,12 @@ If C<lifetime> is specified, C<window> defaults to that.
 If C<lifetime> is not specified, C<window> defaults to 1800 (30 minutes),
 adjusted upwards if C<skew> is specified and larger than the default skew.
 
-Values between 0 and C<skew> (causing all nonces to be rejected) and
-values greater than C<lifetime> (cache will fail to keep some nonces
-that are still within the window) are I<not> recommended.
+On general principles, C<window> should be a maximal expected
+propagation delay plus twice the C<skew>.
 
-Ideally, C<window> should be the maximal reasonably expected transmission
-delay plus twice the C<skew>.
+Values between 0 and C<skew> (causing all nonces to be rejected) and
+values greater than C<lifetime> (cache may fail to keep all nonces
+that are still within the window) are I<not> recommended.
 
 =item C<timecop>
 
@@ -1581,15 +1610,15 @@ delay plus twice the C<skew>.
 Reject nonces from The Future (i.e., timestamped more than
 C<skew> seconds from now).
 
-C<timecop> is most likely useful only for debugging.  Rejecting future
-nonces is neither required nor does it protect from anything since an
-attacker can retry the message once it has expired from our cache but
-is still within the time interval where we would not yet I<expect>
-that it could expire (this being the core problem with future nonces).
-It may be, however, be useful to have warnings about misconfigured
-provider clocks -- and hence about this insecurity -- at the cost of
-impairing interoperability (since this rejects messages that are
-otherwise allowed by the protocol), hence this option.
+Note that rejecting future nonces is not required.  Nor does it
+protect from anything since an attacker can retry the message once it
+has expired from the cache but is still within the time interval where
+we would not yet I<expect> that it could expire E<mdash> this being
+the essential problem with future nonces.  It may, however, be useful
+to have warnings about misconfigured provider clocks E<mdash> and hence
+about this insecurity E<mdash> at the cost of impairing interoperability
+(since this rejects messages that are otherwise allowed by the
+protocol), hence this option.
 
 =back
 
@@ -1602,13 +1631,14 @@ unsatisfactory or because the cache implementation is incapable of
 setting individual expiration times.  All other options should default
 reasonably in these cases.
 
-Note that in order for the nonce check to be as reliable/secure as
-possible (i.e., block all instances of duplicate nonces from properly
-configured providers as defined by C<skew>, the best we can do),
-C<start> must be no earlier than the cache start time and the cache
-must be guaranteed to hold nonce entries for at least C<lifetime>
-seconds (though, to be sure, C<start> will not matter once your server
-has been running for C<lifetime> seconds).
+In order for the nonce check to be as reliable/secure as possible
+(i.e., that it block all instances of duplicate nonces from properly
+configured providers as defined by C<skew>, which is the best we can
+do), C<start> must be no earlier than the cache start time and the
+cache must be guaranteed to hold nonce entries for at least C<window>
+seconds (though, to be sure, if you can tolerate being vulnerable for
+the first C<window> seconds of a server run, then you do not need to
+set C<start>).
 
 =back
 
