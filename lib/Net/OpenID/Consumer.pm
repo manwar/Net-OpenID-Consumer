@@ -806,7 +806,7 @@ sub verified_identity {
     unless ($response_nonce) {
         # 1.0/1.1 does not require nonces
         return $self->_fail("nonce_missing")
-          if $self->_message_version == 2;
+          if $self->_message_version >= 2;
     }
     else {
         return unless $self->_nonce_check_succeeds($now, $server, $response_nonce);
