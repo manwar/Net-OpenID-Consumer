@@ -504,9 +504,10 @@ sub _canonicalize_id_url {
     return $url;
 }
 
+# always returns a listref; might be empty, though
 sub _discover_acceptable_endpoints {
     my Net::OpenID::Consumer $self = shift;
-    my $url = shift;
+    my $url = shift;  #already canonicalized ID url
     my %opts = @_;
 
     # if return_early is set, we'll return as soon as we have enough
@@ -517,8 +518,6 @@ sub _discover_acceptable_endpoints {
     my $force_version = delete $opts{force_version};
 
     Carp::croak("Unknown option(s) ".join(', ', keys(%opts))) if %opts;
-
-    return unless $url = $self->_canonicalize_id_url($url);
 
     my @discovered_endpoints = ();
     my $result = sub {
@@ -674,7 +673,7 @@ sub claimed_identity {
 
     my $endpoints = $self->_discover_acceptable_endpoints($url, primary_only => 1);
 
-    if (ref($endpoints) && @$endpoints) {
+    if (@$endpoints) {
         foreach my $endpoint (@$endpoints) {
 
             next unless $endpoint->{version} >= $self->minimum_version;
@@ -763,38 +762,34 @@ sub verified_identity {
     my $server;
     my $claimed_identity;
 
-    my $real_ident;
-    if ($self->_message_version == 1) {
-        $real_ident = $self->args("oic.identity") || $a_ident;
+    my $real_ident =
+      ($self->_message_version == 1
+       ? $self->args("oic.identity")
+       : $self->message("claimed_id")
+      ) || $a_ident;
+    my $real_canon = $self->_canonicalize_id_url($real_ident);
 
+    return $self->_fail("no_identity_server")
+      unless ($real_canon
+              && @{
+                  $possible_endpoints =
+                    $self->_discover_acceptable_endpoints
+                      ($real_canon, force_version => $self->_message_version)
+                  });
+    # FIXME: It kinda sucks that the above will always do both Yadis and HTML discovery, even though
+    # in most cases only one will be in use.
+
+    if ($self->_message_version == 1) {
         # In version 1, we have to assume that the primary server
         # found during discovery is the one sending us this message.
-        $possible_endpoints = $self->_discover_acceptable_endpoints($real_ident, force_version => 1);
-
-        if ($possible_endpoints && @$possible_endpoints) {
-            $possible_endpoints = [ $possible_endpoints->[0] ];
-            $server = $possible_endpoints->[0]{uri};
-        }
-        else {
-            # We just fall out of here and bail out below for having no endpoints.
-        }
+        splice(@$possible_endpoints,1);
+        $server = $possible_endpoints->[0]->{uri};
     }
     else {
-        $real_ident = $self->message("claimed_id") || $a_ident;
-
         # In version 2, the OpenID provider tells us its URL.
         $server = $self->message("op_endpoint");
-        $possible_endpoints = $self->_discover_acceptable_endpoints($real_ident, force_version => 2);
-
-        # FIXME: It kinda sucks that the above will always do both Yadis and HTML discovery, even though
-        # in most cases only one will be in use.
     }
-
     $self->_debug("Server is $server");
-
-    unless ($possible_endpoints && @$possible_endpoints) {
-        return $self->_fail("no_identity_server");
-    }
 
     # check that returnto is for the right host
     return $self->_fail("bogus_return_to") if $rr && $returnto !~ /^\Q$rr\E/;
