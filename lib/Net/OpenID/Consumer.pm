@@ -486,6 +486,24 @@ sub handle_server_response {
 
 }
 
+sub _canonicalize_id_url {
+    my Net::OpenID::Consumer $self = shift;
+    my $url = shift;
+
+    # trim whitespace
+    $url =~ s/^\s+//;
+    $url =~ s/\s+$//;
+    return $self->_fail("empty_url") unless $url;
+
+    # add scheme
+    $url = "http://$url" if $url && $url !~ m!^\w+://!;
+    return $self->_fail("bogus_url") unless $url =~ m!^https?://!i;
+
+    # make sure there is a slash after the hostname
+    $url .= "/" unless $url =~ m!^https?://.+/!i;
+    return $url;
+}
+
 sub _discover_acceptable_endpoints {
     my Net::OpenID::Consumer $self = shift;
     my $url = shift;
@@ -500,16 +518,7 @@ sub _discover_acceptable_endpoints {
 
     Carp::croak("Unknown option(s) ".join(', ', keys(%opts))) if %opts;
 
-    # trim whitespace
-    $url =~ s/^\s+//;
-    $url =~ s/\s+$//;
-    return $self->_fail("empty_url") unless $url;
-
-    # do basic canonicalization
-    $url = "http://$url" if $url && $url !~ m!^\w+://!;
-    return $self->_fail("bogus_url") unless $url =~ m!^https?://!i;
-    # add a slash, if none exists
-    $url .= "/" unless $url =~ m!^https?://.+/!i;
+    return unless $url = $self->_canonicalize_id_url($url);
 
     my @discovered_endpoints = ();
     my $result = sub {
@@ -661,16 +670,7 @@ sub claimed_identity {
     my $url = shift;
     Carp::croak("Too many parameters") if @_;
 
-    # trim whitespace
-    $url =~ s/^\s+//;
-    $url =~ s/\s+$//;
-    return $self->_fail("empty_url") unless $url;
-
-    # do basic canonicalization
-    $url = "http://$url" if $url && $url !~ m!^\w+://!;
-    return $self->_fail("bogus_url") unless $url =~ m!^https?://!i;
-    # add a slash, if none exists
-    $url .= "/" unless $url =~ m!^https?://.+/!i;
+    return unless $url = $self->_canonicalize_id_url($url);
 
     my $endpoints = $self->_discover_acceptable_endpoints($url, primary_only => 1);
 
