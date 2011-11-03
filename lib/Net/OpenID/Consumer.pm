@@ -1877,3 +1877,6 @@ Tatsuhiko Miyagawa <miyagawa@sixapart.com>
 
 Martin Atkins <mart@degeneration.co.uk>
 
+Robert Norris <rob@eatenbyagrue.org>
+
+Roger Crew <crew@cs.stanford.edu>
