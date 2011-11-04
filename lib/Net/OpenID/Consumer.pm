@@ -1290,6 +1290,7 @@ as set by the various handlers below.
 =item $csr->B<errcode>
 
 Returns the last error code.
+See L<Error Codes|/ERROR CODES> below.
 
 =item $csr->B<errtext>
 
@@ -1649,32 +1650,8 @@ returns undef and sets last error ($csr->B<err>).
 Note that the identity returned is I<not> verified yet.
 It's only who the user claims they are, but they could be lying.
 
-If this method returns undef, you can rely on the following error
-codes (from $csr->B<errcode>) to decide what to present to the user:
-
-=over 8
-
-=item C<no_identity_server>
-
-No identity provider was found for this URL.
-
-=item C<protocol_version_incorrect>
-
-You set B<minimum_version(2)> and all of the available providers are version 1.
-
-=item C<empty_url>
-
-The URL provided was essentially an empty string.
-
-=item C<bogus_url>
-
-The URL provided was of the wrong scheme (not C<http:> or C<https:>).
-
-=item C<url_fetch_err, no_head_tag>
-
-No longer used.
-
-=back
+If this method returns undef, an error code will be set.
+See L<Error Codes|/ERROR CODES> below.
 
 =back
 
@@ -1722,6 +1699,7 @@ A L<Net::OpenID::VerifiedIdentity|Net::OpenID::VerifiedIdentity> object is passe
 =item C<error ($errcode, $errmsg)>
 
 an error has occured. An error code and message are provided.
+See L<Error Codes|/ERROR CODES> below for the meanings of the codes.
 
 =back
 
@@ -1824,6 +1802,125 @@ The options in %opts may contain:
 
 Sets the required_root just for this request.  Values returns to its
 previous value afterwards.
+
+=back
+
+If this method returns undef, an error code will be set.
+See L<Error Codes|/ERROR CODES> below.
+
+=back
+
+=head1 ERROR CODES
+
+This is the complete list of error codes that can be set.  Errors marked with (C) are set by B<claimed_identity>.  Other errors occur during handling of provider responses and can be set by B<args> (A), B<verified_identity> (V), and B<user_setup_url> (S), all of which can show up in the C<error> callback for B<handle_server_response>.
+
+=over
+
+=over
+
+=item C<provider_error>
+
+(A) The protocol message is a (2.0) error mode (i.e., C<openid.mode = 'error'>) message, typically used for provider-specific error reponses.  Use $csr->B<message> to get at the C<contact> and C<reference> fields.
+
+=item C<empty_url>
+
+(C) Tried to do discovery on an empty or all-whitespace string.
+
+=item C<bogus_url>
+
+(C) Tried to do discovery on a non-http:/https: URL.
+
+=item C<protocol_version_incorrect>
+
+(C) None of the ID providers found support even the minimum protocol version ($csr->B<minimum_version>)
+
+=item C<no_identity_server>
+
+(CV) Tried to do discovery on a URL that does not seem to have any providers at all.
+
+=item C<bad_mode>
+
+(SV) The C<openid.mode> was expected to be C<id_res> (positive assertion or, in version 1, checkid_immediate failed).
+
+=item C<no_identity>
+
+(V) The C<openid.identity> parameter is missing.
+
+=item C<no_sig>
+
+(V) The  C<openid.sig> parameter is missing.
+
+=item C<no_return_to>
+
+(V) The C<openid.return_to> parameter is missing
+
+=item C<bogus_return_to>
+
+(V) The C<return_to> URL does not match $csr->B<required_root>
+
+=item C<nonce_missing>
+
+(V) The C<openid.response_nonce> parameter is missing.
+
+=item C<nonce_reused>
+
+(V) A previous assertion from this provider used this response_nonce already.  Someone may be attempting a replay attack.
+
+=item C<nonce_format>
+
+(V) Either the response_nonce timestamp was not in the correct format (e.g., tried to have fractional seconds or not UTC) or one of the components was out of range (e.g., month = 13).
+
+=item C<nonce_future>
+
+(V) C<timecop> was set and we got a response_nonce that was more than C<skew> seconds into the future.
+
+=item C<nonce_stale>
+
+(V) We got a response_nonce that was either prior to the start time or more than window seconds ago.
+
+=item C<time_expired>
+
+(V) The return_to signature time (C<oic.time>) is from too long ago.
+
+=item C<time_in_future>
+
+(V) The return_to signature time (C<oic.time>) is too far into the future.
+
+=item C<time_bad_sig>
+
+(V) The HMAC of the return_to signature (C<oic.time>) is not what it should be.
+
+=item C<server_not_allowed>
+
+(V) None of the provider endpoints found for the given ID match the server specified by the C<openid.op_endpoint> parameter (OpenID 2 only).
+
+=item C<unexpected_url_redirect>
+
+(V) Discovery for the given ID ended up at the wrong place
+
+=item C<bogus_delegation>
+
+(V) Asserted identity (C<openid.identity>) does not match claimed_id or local_id/delegate.
+
+=item C<unsigned_field>
+
+(V) In OpenID 2.0, C<openid.op_endpoint>, C<openid.return_to>, C<openid.response_nonce>, and C<openid.assoc_handle> must always be signed, while C<openid.claimed_id> and C<openid.identity> must be signed if present.
+
+=item C<expired_association>
+
+(V) C<openid.assoc_handle> is for an association that has expired.
+
+=item C<signature_mismatch>
+
+(V) An attempt to confirm the positive assertion using the association given by C<openid.assoc_handle> failed; the signature is not what it should be.
+
+=item C<naive_verify_failed_network>
+
+(V) An attempt to confirm the positive assertion via direct contact (check_authentication) with the provider failed with no response or a bad status code (!= 200).
+
+=item C<naive_verify_failed_return>
+
+(V) An attempt to confirm a positive assertion via direct contact (check_authentication) received an explicitly negative response (C<openid.is_valid = FALSE>).
 
 =back
 
