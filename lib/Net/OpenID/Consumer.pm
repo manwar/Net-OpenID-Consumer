@@ -515,6 +515,8 @@ sub _discover_acceptable_endpoints {
     # that as the first (and possibly only) item in our response.
     my $primary_only = delete $opts{primary_only} ? 1 : 0;
 
+    # if force_version is set, we only return endpoints that have
+    # that have {version} == $force_version
     my $force_version = delete $opts{force_version};
 
     Carp::croak("Unknown option(s) ".join(', ', keys(%opts))) if %opts;
@@ -599,7 +601,9 @@ sub _discover_acceptable_endpoints {
                 }
             }
 
-            if (grep(/^${version2_directed}$/, $service->Type)) {
+            if (((!defined($force_version)) || $force_version == 2)
+                && grep(/^${version2_directed}$/, $service->Type)) {
+
                 # We have an OpenID 2.0 OP identifier (i.e. we're doing directed identity)
                 my $version = 2;
                 # In this case, the user's claimed identifier is a magic value
@@ -824,6 +828,9 @@ sub verified_identity {
     my $last_error = undef;
 
     foreach my $endpoint (@$possible_endpoints) {
+        # Known:
+        #  $endpoint->{version} == $self->_message_version
+
         my $final_url = $endpoint->{final_url};
         my $endpoint_uri = $endpoint->{uri};
         my $delegate = $endpoint->{delegate};
@@ -850,12 +857,6 @@ sub verified_identity {
         }
         unless ($final_url_nofragment eq $real_ident_nofragment) {
             $error->("unexpected_url_redirect");
-            next;
-        }
-
-        # Protocol version must match
-        unless ($endpoint->{version} == $self->_message_version) {
-            $error->("protocol_version_incorrect");
             next;
         }
 
