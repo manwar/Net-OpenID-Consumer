@@ -891,23 +891,23 @@ sub verified_identity {
     $self->_debug("verified_identity: assoc_handle: $assoc_handle");
     my $assoc = Net::OpenID::Association::handle_assoc($self, $server, $assoc_handle);
 
-    my %signed_fields;   # key (without openid.) -> value
+    my @signed_fields = grep {m/^[\w\.]+$/} split(/,/, $signed);
+    my %signed_value = map {$_,$self->args("openid.$_")} @signed_fields;
 
     # Auth 2.0 requires certain keys to be signed.
     if ($self->_message_version >= 2) {
-        my %signed_fields = map {$_ => 1} split /,/, $signed;
-        my %unsigned_fields;
+        my %unsigned;
         # these fields must be signed unconditionally
         foreach my $f (qw/op_endpoint return_to response_nonce assoc_handle/) {
-            $unsigned_fields{$f}++ if !$signed_fields{$f};
+            $unsigned{$f}++ unless exists $signed_value{$f};
         }
         # these fields must be signed if present
         foreach my $f (qw/claimed_id identity/) {
-            next unless $self->args("openid.$f");
-            $unsigned_fields{$f}++ if !$signed_fields{$f};
+            $unsigned{$f}++
+              if $self->args("openid.$f") && !exists $signed_value{$f};
         }
-        if (%unsigned_fields) {
-            return $self->_fail("unsigned_field", undef, keys %unsigned_fields);
+        if (%unsigned) {
+            return $self->_fail("unsigned_field", undef, keys %unsigned);
         }
     }
 
@@ -918,12 +918,7 @@ sub verified_identity {
             if $assoc->expired;
 
         # verify the token
-        my $token = "";
-        foreach my $param (split(/,/, $signed)) {
-            my $val = $self->args("openid.$param");
-            $token .= "$param:$val\n";
-            $signed_fields{$param} = $val;
-        }
+        my $token = join '',map {"$_:$signed_value{$_}\n"} @signed_fields;
 
         utf8::encode($token);
         my $good_sig = $assoc->generate_signature($token);
@@ -959,13 +954,8 @@ sub verified_identity {
             }
 
             # and copy in all signed parameters that we don't already have into %post
-            foreach my $param (split(/,/, $signed)) {
-                next unless $param =~ /^[\w\.]+$/;
-                my $val = $self->args('openid.'.$param);
-                $signed_fields{$param} = $val;
-                next if $post{"openid.$param"};
-                $post{"openid.$param"} = $val;
-            }
+            $post{"openid.$_"} = $signed_value{$_}
+              foreach grep {!exists $post{"openid.$_"}} @signed_fields;
 
             # if the provider told us our handle as bogus, let's ask in our
             # check_authentication mode whether that's true
@@ -1004,7 +994,7 @@ sub verified_identity {
     return Net::OpenID::VerifiedIdentity->new(
         claimed_identity => $claimed_identity,
         consumer  => $self,
-        signed_fields => \%signed_fields,
+        signed_fields => \%signed_value,
     );
 }
 
