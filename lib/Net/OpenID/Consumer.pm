@@ -788,12 +788,17 @@ sub verified_identity {
         # found during discovery is the one sending us this message.
         splice(@$possible_endpoints,1);
         $server = $possible_endpoints->[0]->{uri};
+        $self->_debug("Server is $server");
     }
     else {
         # In version 2, the OpenID provider tells us its URL.
         $server = $self->message("op_endpoint");
+        $self->_debug("Server is $server");
+        # but make sure that URL matches one of the discovered ones.
+        @$possible_endpoints =
+          grep {$_->{uri} eq $server} @$possible_endpoints
+            or return $self->_fail("server_not_allowed");
     }
-    $self->_debug("Server is $server");
 
     # check that returnto is for the right host
     return $self->_fail("bogus_return_to") if $rr && $returnto !~ /^\Q$rr\E/;
@@ -826,25 +831,18 @@ sub verified_identity {
     }
 
     my $last_error = undef;
+    my $error = sub {
+        $self->_debug("$server not acceptable: ".$_[0]);
+        $last_error = $_[0];
+    };
 
     foreach my $endpoint (@$possible_endpoints) {
         # Known:
         #  $endpoint->{version} == $self->_message_version
+        #  $endpoint->{uri} == $server
 
         my $final_url = $endpoint->{final_url};
-        my $endpoint_uri = $endpoint->{uri};
         my $delegate = $endpoint->{delegate};
-
-        my $error = sub {
-            $self->_debug("$endpoint_uri not acceptable: ".$_[0]);
-            $last_error = $_[0];
-        };
-
-        # The endpoint_uri must match our $server (provider)
-        if ($endpoint_uri ne $server) {
-            $error->("server_not_allowed");
-            next;
-        }
 
         # OpenID 2.0 wants us to exclude the fragment part of the URL when doing equality checks
         my $a_ident_nofragment = $a_ident;
