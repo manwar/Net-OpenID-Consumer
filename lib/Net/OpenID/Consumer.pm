@@ -225,29 +225,35 @@ sub ua {
 our %Error_text =
    (
     'bad_mode'                    => "The openid.mode argument is not correct",
+    'bogus_delegation'            => "Asserted identity does not match claimed_id or local_id.",
     'bogus_return_to'             => "Return URL does not match required_root.",
     'bogus_url'                   => "URL scheme must be http: or https:",
     'empty_url'                   => "No URL entered.",
     'expired_association'         => "Association between ID provider and relying party has expired.",
     'naive_verify_failed_network' => "Could not contact ID provider to verify response.",
     'naive_verify_failed_return'  => "Direct contact invalidated ID provider response.",
-    'no_head_tag'                 => "Could not determine ID provider; URL document has no <head>.",
     'no_identity'                 => "Identity is missing from ID provider response.",
     'no_identity_server'          => "Could not determine ID provider from URL.",
     'no_return_to'                => "Return URL is missing from ID provider response.",
     'no_sig'                      => "Signature is missing from ID provider response.",
     'protocol_version_incorrect'  => "ID provider does not support minimum protocol version",
     'provider_error'              => "ID provider-specific error",
+    'server_not_allowed'          => "None of the discovered endpoints matches op_endpoint.",
     'signature_mismatch'          => "Prior association invalidated ID provider response.",
     'time_bad_sig'                => "Return_to signature is not valid.",
     'time_expired'                => "Return_to signature is stale.",
     'time_in_future'              => "Return_to signature is from the future.",
+    'unexpected_url_redirect'     => "Discovery for the given ID ended up at the wrong place",
     'unsigned_field'              => sub { "Field(s) must be signed: " . join(", ", @_) },
-    'url_fetch_err'               => "Error fetching the provided URL.",
+    'nonce_missing'               => "Response_nonce is missing from ID provider response.",
     'nonce_reused'                => 'Re-used response_nonce; possible replay attempt.',
     'nonce_stale'                 => 'Stale response_nonce; could have been used before.',
     'nonce_format'                => 'Bad timestamp format in response_nonce.',
     'nonce_future'                => 'Provider clock is too far forward.',
+
+# no longer used as of 1.11
+#   'no_head_tag'   => "Could not determine ID provider; URL document has no <head>.",
+#   'url_fetch_err' => "Error fetching the provided URL.",
 
    );
 
