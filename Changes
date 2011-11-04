@@ -1,5 +1,7 @@
 {{$NEXT}}
 
+1.11      Nov 04 2011
+
     * Added POD section on Error Codes
 
     * Fixed bug that could cause VerifiedIdentity->signed_fields
