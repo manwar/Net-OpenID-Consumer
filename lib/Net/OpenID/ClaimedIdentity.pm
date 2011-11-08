@@ -338,7 +338,7 @@ and present it to the user somehow.
 
 =head1 COPYRIGHT, WARRANTY, AUTHOR
 
-See L<Net::OpenID::Consumer> for author, copyrignt and licensing information.
+See L<Net::OpenID::Consumer> for author, copyright and licensing information.
 
 =head1 SEE ALSO
 

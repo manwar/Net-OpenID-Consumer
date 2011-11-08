@@ -413,7 +413,7 @@ Internal class.
 
 =head1 COPYRIGHT, WARRANTY, AUTHOR
 
-See L<Net::OpenID::Consumer> for author, copyrignt and licensing information.
+See L<Net::OpenID::Consumer> for author, copyright and licensing information.
 
 =head1 SEE ALSO
 
@@ -423,5 +423,5 @@ L<Net::OpenID::VerifiedIdentity>
 
 L<Net::OpenID::Server>
 
-Website:  L<http://www.danga.com/openid/>
+Website:  L<http://openid.net/>
 

@@ -384,4 +384,4 @@ L<Net::OpenID::ClaimedIdentity>
 
 L<Net::OpenID::Server>
 
-Website:  L<http://www.danga.com/openid/>
+Website:  L<http://openid.net/>
