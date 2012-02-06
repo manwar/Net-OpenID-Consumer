@@ -90,7 +90,7 @@ sub handle_login {
     # openid server endpoint
     my $claimed_identity = $openid->claimed_identity($params->{openid});
 
-    # if we failk to get the claimed identity it means either the identity is
+    # if we fail to get the claimed identity it means either the identity is
     # invalid (eg malformed) or the endpoint could not be determined. the
     # Consumer object provides more detail about what happened via its error
     # methods
