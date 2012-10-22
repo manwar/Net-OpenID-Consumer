@@ -38,7 +38,7 @@ use HTTP::Request;
 use LWP::UserAgent;
 use Storable;
 use JSON qw(encode_json);
-use URI::Escape qw(uri_escape);
+use URI::Escape qw(uri_escape_utf8);
 use HTML::Parser;
 
 sub new {
@@ -973,11 +973,10 @@ sub verified_identity {
 
         my $req = HTTP::Request->new(POST => $server);
         $req->header("Content-Type" => "application/x-www-form-urlencoded");
-        $req->content(join("&", map { "$_=" . uri_escape($post{$_}) } keys %post));
+        $req->content(join("&", map { "$_=" . uri_escape_utf8($post{$_}) } keys %post));
 
         my $ua  = $self->ua;
         my $res = $ua->request($req);
-
         return $self->_fail("naive_verify_failed_network")
           unless $res && $res->is_success;
 
