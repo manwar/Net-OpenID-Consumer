@@ -1202,8 +1202,12 @@ Net::OpenID::Consumer - Library for consumers of OpenID identities
           die "Not an OpenID message";
       },
       setup_needed => sub {
-          # (OpenID 2) retry request in checkid_setup mode
-          # (OpenID 1) redirect user to $csr->user_setup_url
+          if ($csr->message->protocol_version >= 2) {
+              # (OpenID 2) retry request in checkid_setup mode (above)
+          }
+          else {
+              # (OpenID 1) redirect user to $csr->user_setup_url
+          }
       },
       cancelled => sub {
           # User hit cancel; restore application state prior to check_url
@@ -1282,7 +1286,12 @@ This can only be used to obtain core OpenID fields not extension fields.
 
 Calling this method without a C<$key> argument returns a
 L<Net::OpenID::IndirectMessage|Net::OpenID::IndirectMessage>
-object representing the protocol message.
+object representing the protocol message, at which point the
+various object methods are available, including
+
+ $csr->message->protocol_version
+ $csr->message->has_ext
+ $csr->message->get_ext
 
 Returns undef in either case if no URL parameters have been supplied
 (i.e., because B<args>() has not been initialized) or if the request

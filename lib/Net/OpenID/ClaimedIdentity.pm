@@ -315,7 +315,7 @@ beginning of the host, like C<http://*.example.com/>
 If set to a true value, the check_url returned will indicate to the
 user's identity provider that it has permission to control the user's
 user-agent for awhile, giving them real pages (not just redirects) and
-lets them bounce around the identity provider site for awhile until
+lets them bounce around the identity provider site for a while until
 the requested assertion can be made, and they can finally be redirected
 back to your return_to URL above.
 
@@ -328,9 +328,11 @@ whether to retry the request with C<delayed_return> set true
 user_setup_url (which is made available in version 1.0/1.1).
 
 When writing a dynamic "AJAX"-style application, you can't use
-delayed_return because the remote site can't usefully take control of
-a 1x1 pixel hidden IFRAME, so you'll need to get the user_setup_url
-and present it to the user somehow.
+delayed_return because the remote site can't usefully take control
+of a 1x1 pixel hidden IFRAME, so you'll need to either (1.0/1.1)
+get the user_setup_url and present it to the user somehow
+or (2.0) launch a delayed_return request from an actual window
+if the AJAX-style request fails.
 
 =back
 
