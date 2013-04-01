@@ -34,8 +34,9 @@ my $c = Net::OpenID::Consumer->new(
             'openid.sig'        => 'fake',
             'openid.return_to'  => 'http://example.com/openid',
             'openid.claimed_id' => 'http://example.com/openid?j.doe',
-            'openid.something'  => 'тест', # this breaks @ uri_escape
+            'openid.something'  => "\x{442}\x{435}\x{441}\x{442}", # this breaks @ uri_escape
             'openid.signed'     => 'mode,identity,return_to,signed,claimed_id,something',
+            'openid.assoc_handle' => 'a_handle',
         }
     );
 
