@@ -83,19 +83,20 @@ sub handle_login {
     my ($realm, $base, $params) = @_;
 
     # get an Net::OpenID::Consumer object configured the way we want it
-    my $openid = _get_openid_context($params);
+    my $consumer = _get_openid_context($params);
 
     # create a Net::OpenID::ClaimedIdentity object based on the entered
     # openid. this method will lookup the openid url (HTML or XRDS) to get the
     # openid server endpoint
-    my $claimed_identity = $openid->claimed_identity($params->{openid});
+    my $claimed_identity = $consumer->claimed_identity($params->{openid});
 
     # if we fail to get the claimed identity it means either the identity is
     # invalid (eg malformed) or the endpoint could not be determined. the
     # Consumer object provides more detail about what happened via its error
     # methods
     if (! $claimed_identity) {
-        return [ 200, [ 'Content-Type' => 'text/plain' ], [ 'Invalid identity: '.$openid->err ] ];
+        return [ 200, [ 'Content-Type' => 'text/plain' ],
+                 [ 'Invalid identity: '.$consumer->err ] ];
     }
 
     # the claimed identity is valid, so now we need to build a url on the OP
@@ -117,10 +118,10 @@ sub handle_login {
         # openid.mode = checkid_setup)
         #
         # if you want to do the login in the background via javascript, you'd set
-        # this to 0 (ie checkid_immediate) but then you must be prepared to
-        # handle the OP requesting setup. we handle that naively below in the
-        # setup_required argument in handle_callback, but you'll probably want
-        # to be a lot smarter about this
+        # this to 0 (ie checkid_immediate) so that the javascript code can
+        # fail directly and cause the display to either prompt the user to
+        # login manually with their provider or launch another openID login
+        # from a visible window (where you *can* set delayed_return to 1)
         delayed_return => 1,
     );
 
@@ -137,12 +138,12 @@ sub handle_callback {
     my ($realm, $base, $params) = @_;
 
     # get the Net::OpenID::Consumer object
-    my $openid = _get_openid_context($params);
+    my $consumer = _get_openid_context($params);
 
     # call the response handler. it takes a few coderefs to handle the various
     # things that might be received from the OP. the data returned by the
     # coderef is what will be returned by the handler
-    return $openid->handle_server_response(
+    return $consumer->handle_server_response(
 
         # not_openid is called when the parameters passed to the callback url
         # don't represent a valid openid message. this means either the OP is
@@ -153,15 +154,19 @@ sub handle_callback {
             return [ 200, [ 'Content-Type' => 'text/plain', ], [ 'Not an OpenID message.' ] ];
         },
 
-        # setup_required is called when the OP can't complete the
-        # authentication process because it needs to interact with the user.
-        # this will usually only be called if delayed_return is 0 above. to
-        # complete the login you must somehow arrange for the user to visit
-        # the url passed to this sub
-        setup_required => sub {
-            my ($setup_url) = @_;
+        # since we have delayed_return == 1 above
+        # covering the setup_needed case is not actually necessary
+        setup_needed => sub {
+            # this might be version 1.1 and setup_url may have been
+            # been provided, in which case we could redirect
+            if ($consumer->message->protocol_version < 2) {
+                my $setup_url = $consumer->user_setup_url;
+                return [ 301, [ Location =>  $setup_url ], [] ]
+                  if ($setup_url);
+            }
 
-            return [ 301, [ Location => $setup_url ], [] ];
+            return [ 200, [ 'Content-Type' => 'text/plain', ],
+                     [ 'You must login with your provider first.' ] ];
         },
 
         # cancelled is called when the OP informs us that the user cancelled
@@ -191,7 +196,7 @@ sub handle_callback {
         error => sub {
             my ($error) = @_;
 
-            return [ 200, [ 'Content-Type' => 'text/plain', ], [ 'Error: '.$openid->err ] ];
+            return [ 200, [ 'Content-Type' => 'text/plain', ], [ 'Error: '.$consumer->err ] ];
         },
 
     );
@@ -201,24 +206,30 @@ sub handle_callback {
 sub _get_openid_context {
     my ($params) = @_;
 
-    my $openid = Net::OpenID::Consumer->new(
+    my $consumer = Net::OpenID::Consumer->new(
 
         # ua takes a LWP::UserAgent object that will be used fetch the
-        # identity url provided by the user. since this can be url its
-        # possible for a user to make your application to a fetch on some
-        # other url on its behalf, possibly something inside your firewall. if
-        # thats a problem for you, consider vetting the identifer provided by
-        # the user or subclassing LWP::UserAgent to protect against such
-        # things (see LWPx::ParanoidAgent for an example of this)
+        # identity url provided by the user.  Since this can be an
+        # arbitrary URL it's possible for a user to make your
+        # application to a fetch on some other url on its behalf,
+        # possibly something inside your firewall.
+        # If that's a problem for you, consider vetting the identifer
+        # provided by the user or subclassing LWP::UserAgent to
+        # protect against such things (see LWPx::ParanoidAgent for an
+        # example of this)
         ua              => LWP::UserAgent->new,
 
-        # args can take a number of different objects that may contain the
-        # request parameters from the browser, eg a CGI, Apache::Request,
-        # Apache2::Request or similar (see the documentation for more). if a
-        # coderef is provided (as is the case here), it will be passed a
-        # single argument containing the wanted parameter, and should return
-        # the value of that parameter, or undef if its not available
-        args            => sub { $params->{+shift} },
+        # args can take a number of different objects that may contain
+        # the request parameters from the browser, eg a CGI,
+        # Apache::Request, Apache2::Request or similar (see the
+        # documentation for more). if a coderef is provided (as is the
+        # case here), it will either be passed a single argument
+        # containing the wanted parameter, in which case it should
+        # return the value of that parameter (or undef if not
+        # available), or it will be passed no arguments and the full
+        # list of parameter names should be returned
+
+        args            => sub { @_ ? $params->{+shift} : keys %$params },
 
         # consumer_secret takes a coderef that is called to generate the
         # "nonce" value for the return_to uri. it is passed a single argument
@@ -232,7 +243,7 @@ sub _get_openid_context {
         consumer_secret => sub { return 'xyz789' },
     );
 
-    return $openid;
+    return $consumer;
 }
 
 __END__
