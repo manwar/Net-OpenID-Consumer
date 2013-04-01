@@ -894,7 +894,8 @@ sub verified_identity {
 
     my $assoc_handle = $self->message("assoc_handle");
 
-    $self->_debug("verified_identity: assoc_handle: $assoc_handle");
+    $self->_debug("verified_identity: assoc_handle" .
+		  ($assoc_handle ? ": $assoc_handle" : " missing"));
     my $assoc = Net::OpenID::Association::handle_assoc($self, $server, $assoc_handle);
 
     my @signed_fields = grep {m/^[\w\.]+$/} split(/,/, $signed);
