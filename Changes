@@ -1,5 +1,7 @@
 {{$NEXT}}
 
+1.15      Sep 06 2013
+
     * Require Net-OpenID-Common 1.18
       in order to pick up patched Crypt::DH::GMP 0.00011 (closes #88460)
 
