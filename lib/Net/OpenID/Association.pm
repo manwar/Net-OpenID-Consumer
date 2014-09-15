@@ -21,7 +21,7 @@ use URI::Escape qw(uri_escape);
 
 # session type hash
 #    name  - by which session type appears in URI parameters (required)
-#    len   - number of bytes in digest (undef => accomodates any length)
+#    len   - number of bytes in digest (undef => accommodates any length)
 #    fn    - DH hash function (undef => secret passed in the clear)
 #    https - must use encrypted connection (boolean)
 #
