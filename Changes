@@ -1,6 +1,12 @@
 {{$NEXT}}
 
+1.17      Jan 15 2016
+
+    * Include CGI in test prerequisites since it's not part of perlcore anymore
+
 1.16      Sep 15 2014
+
+    * Require Net-OpenID-Common 1.19
 
 1.15      Sep 06 2013
 
