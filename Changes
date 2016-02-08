@@ -1,5 +1,10 @@
 {{$NEXT}}
 
+    * Make naive_verify_failed_network message less mysterious in cases where
+      provider actually responds but with a non-success status.
+
+    * whitespace changes
+
 1.17      Jan 15 2016
 
     * Include CGI in test prerequisites since it's not part of perlcore anymore

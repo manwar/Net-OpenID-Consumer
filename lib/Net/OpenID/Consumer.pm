@@ -229,7 +229,9 @@ our %Error_text =
     'bogus_url'                   => "URL scheme must be http: or https:",
     'empty_url'                   => "No URL entered.",
     'expired_association'         => "Association between ID provider and relying party has expired.",
-    'naive_verify_failed_network' => "Could not contact ID provider to verify response.",
+    'naive_verify_failed_network' => sub {
+	@_ ? "Unexpected verification response from ID provider:  $_[0]"
+	   : "Could not contact ID provider to verify response." },
     'naive_verify_failed_return'  => "Direct contact invalidated ID provider response.",
     'no_identity'                 => "Identity is missing from ID provider response.",
     'no_identity_server'          => "Could not determine ID provider from URL.",
@@ -977,7 +979,7 @@ sub verified_identity {
 
         my $ua  = $self->ua;
         my $res = $ua->request($req);
-        return $self->_fail("naive_verify_failed_network")
+        return $self->_fail("naive_verify_failed_network", ($res ? ($res->status_line) : ()))
           unless $res && $res->is_success;
 
         my $content = $res->content;
