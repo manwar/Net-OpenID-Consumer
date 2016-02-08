@@ -1,5 +1,7 @@
 {{$NEXT}}
 
+1.18      Feb 07 2016
+
     * Make naive_verify_failed_network message less mysterious in cases where
       provider actually responds but with a non-success status.
 
