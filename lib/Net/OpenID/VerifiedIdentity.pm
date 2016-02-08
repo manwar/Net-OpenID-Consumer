@@ -3,6 +3,7 @@ use Carp ();
 
 ############################################################################
 package Net::OpenID::VerifiedIdentity;
+
 use fields (
     'identity',  # the verified identity URL
     'id_uri',  # the verified identity's URI object

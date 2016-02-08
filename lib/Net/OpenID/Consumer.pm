@@ -6,7 +6,6 @@ use Carp ();
 ############################################################################
 package Net::OpenID::Consumer;
 
-
 use fields (
     'cache',           # Cache object to store HTTP responses,
                        #   associations, and nonces

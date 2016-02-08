@@ -3,6 +3,7 @@ use Carp ();
 
 ############################################################################
 package Net::OpenID::Association;
+
 use fields (
             'server',    # author-identity identity provider endpoint
             'secret',    # the secret for this association
@@ -424,4 +425,3 @@ L<Net::OpenID::VerifiedIdentity>
 L<Net::OpenID::Server>
 
 Website:  L<http://openid.net/>
-

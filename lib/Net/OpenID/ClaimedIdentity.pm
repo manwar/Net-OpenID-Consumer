@@ -3,6 +3,7 @@ use Carp ();
 
 ############################################################################
 package Net::OpenID::ClaimedIdentity;
+
 use fields (
     'identity',         # the canonical URL that was found, following redirects
     'server',           # author-identity identity provider endpoint
@@ -322,8 +323,8 @@ back to your return_to URL above.
 The default value, false, means that the identity provider will
 immediately return to your return_to URL with either a "yes" or "no"
 answer.  In the "no" case, you'll instead have control of what to do,
-whether to retry the request with C<delayed_return> set true 
-(the only way to proceed in version 2.0) or to somehow send 
+whether to retry the request with C<delayed_return> set true
+(the only way to proceed in version 2.0) or to somehow send
 (be it link, redirect, or pop-up window) the user the provider's
 user_setup_url (which is made available in version 1.0/1.1).
 
@@ -351,4 +352,3 @@ L<Net::OpenID::VerifiedIdentity>
 L<Net::OpenID::Server>
 
 Website:  L<http://www.openid.net/>
-
